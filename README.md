@@ -53,6 +53,8 @@ Hydration Sensor 1 - YL69 [Information](https://www.oddwires.com/yl-69-soil-hygr
 
 Hydration Sensor 2 - K-0135 [Datasheet](http://www.fecegypt.com/uploads/dataSheet/1480850810_water.pdf)
 
+Acceleration/Gyro - GY-521 MPU6050 [Datasheet](http://www.haoyuelectronics.com/Attachment/GY-521/mpu6050.pdf) [Information](https://www.hotmcu.com/gy521-mpu6050-3axis-acceleration-gyroscope-6dof-module-p-83.html)
+
 ##### Voltage Regulators:
 
 3.3v - LD1117A [Datasheet](https://www.st.com/content/ccc/resource/technical/document/datasheet/a5/c3/3f/c9/2b/15/40/49/CD00002116.pdf/files/CD00002116.pdf/jcr:content/translations/en.CD00002116.pdf)
