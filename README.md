@@ -76,6 +76,15 @@ Standard Arduino:
 
 [SPI Library](https://www.arduino.cc/en/reference/SPI)
 
+## Message Package:
+Each station will send a single message that contains all the data from each sensor. 
+[0,1,2,3] = Any error codes
+[4,5,6,7] = Temperature in F
+[8,9,10,11] = Light Reading - Arbitrary
+[12,13] = Washer Status, Dryer Status
+[14,15,16,17] = 
+
+
 
 
 

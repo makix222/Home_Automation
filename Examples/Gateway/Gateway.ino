@@ -48,12 +48,12 @@
 //************ IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
 #define NODEID        50    //unique for each node on same network
-#define NETWORKID     100  //the same on all nodes that talk to each other
+#define NETWORKID     127  //the same on all nodes that talk to each other
 //Match frequency to the hardware version of the radio on your Moteino (uncomment one):
 //#define FREQUENCY     RF69_433MHZ
 //#define FREQUENCY     RF69_868MHZ
 #define FREQUENCY     RF69_915MHZ
-#define ENCRYPTKEY    "TOPSECRETPASSWRD" //exactly the same 16 characters/bytes on all nodes!
+#define ENCRYPTKEY    "NotTheRealKey" //exactly the same 16 characters/bytes on all nodes!
 #define IS_RFM69HW_HCW  //uncomment only for RFM69HW/HCW! Leave out if you have RFM69W/CW!
 //*********************************************************************************************
 //Auto Transmission Control - dials down transmit power to save battery
@@ -140,7 +140,7 @@ void loop() {
       Serial.print("to [");Serial.print(radio.TARGETID, DEC);Serial.print("] ");
     }
     for (byte i = 0; i < radio.DATALEN; i++)
-      Serial.print((char)radio.DATA[i]);
+      Serial.print(String(radio.DATA[i]));
     Serial.print("   [RX_RSSI:");Serial.print(radio.RSSI);Serial.print("]");
     
     if (radio.ACKRequested())

@@ -3,21 +3,33 @@
 // This bit here will live on Control Station 1. 
 // Theory of operation documented within README. 
 // 
+// Utilizes the RFM69 library by Felix Rusu, LowPowerLab.com
+// Original library: https://www.github.com/lowpowerlab/rfm69
+// Big Thanks to Mike Grusin for SparkFun's hook up guide
+// https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide
 
-// Low Power for the sleep states. 
-#include "LowPower.h"
 
-// To allow a single firmware to be flashed to any station
-// we define three pins to act as a binary count. 
-int SelPin[] = {3, 4, 5};
-int StationSelect = 0;
+#include <RFM69.h>
+#include <SPI.h>
+
+
+// Radio Specific:
+const int networkID = 127;  // Entire Home network
+const int stationID = 1;    // Just this station ID
+const int baudRate = 9600;
+
+#define Encrypt_Key "NotTheRealKey"    // Note To Self: Change this before GIT push
+RFM69 radio;
+
+// Transmission LED - Diganostic
+int radioLEDPin = 9;
 
 // Main Light Sensor 
 int lightPin = A7;
-float lightRead = 0;
+int lightRead = 0;
 
 // Main Temp Sensor
-int tempPin = A5;
+int tempPin = A6;
 int tempRead;
 float tempC, tempF;
 
@@ -27,59 +39,51 @@ void setup() {
 
   // Serial communication right now for simple debugging.
   Serial.begin(9600);
-  Serial.print("Begin");
+  Serial.println("Control Station 1 online");
 
-  
+  pinMode(radioLEDPin, OUTPUT);
   pinMode(lightPin, INPUT);
   pinMode(tempPin, INPUT);
 
-  // Does the setup, reading, and StationSelect bit math. 
-  // This is what defines what station the chip should
-  // act like. 
-  for (int i = 0; i < 3; i++){
-    pinMode(SelPin[i], INPUT);
-    int temp = digitalRead(SelPin[i]);
-    StationSelect = temp << 1;
-  }
+  digitalWrite(radioLEDPin, LOW);
+
+  radio.initialize(RF69_915MHZ, 1, 127);
+  radio.setHighPower();
+  //radio.encrypt(Encrypt_Key);
 }
 
-void StationOne(){
+void SensorRead(byte input[]){
   // Control Station 1 purpose:
   // Log Temp, light, and 2 Analog inputs to monitor basement.
   // Analog input 1 will indicate when washer cycle finishes.
-  // Analog input 2 will indicate when dryer cycle finishes.
-  
-  Serial.print("Station 1 Reporting!");
-  
+  // Analog input 2 will indicate when dryer cycle finishes.  
   lightRead = analogRead(lightPin);
   tempRead = analogRead(tempPin);
   delay(5); // maybe a bit agressive of a delay. 
 
   tempC = tempRead / 9.3;
-  tempF = (tempC * 1.8) + 32;
+  tempF = (tempC * 1.8) + 32;  
+
+  // Serial Debugging
+  Serial.println(" ");   
   Serial.print(tempF);
   Serial.println(" °F");
-  
   Serial.print(" Light Reading: ");
   Serial.println(lightRead);
-  Serial.println(" "); // Debugging Print Statment. 
-  
+  Serial.println(" ");   
+
+  // Radio
+  // Cast the temp reading from float to int
+  int transmitF = (int) (tempF * 100);
+  // Radio communicates using bytes. We need to convert the ints to bytes.
+  input[0] = (byte) (lightRead >> 8);
+  input[1] = (byte) (lightRead);
+  input[2] = (byte) (transmitF >> 8);
+  input[3] = (byte) (transmitF);
 }
-void StationTwo(){
-  // todo: Write up Sations Operation
-  Serial.print("Station 2 Reporting!");
-}
-void StationThree(){
-  // todo: Write up Sations Operation
-  Serial.print("Station 3 Reporting!");
-}
-void StationFour(){
-  // todo: Write up Sations Operation
-  Serial.print("Station 4 Reporting!");
-}
-void StationFive(){
-  // todo: Write up Sations Operation
-  Serial.print("Station 5 Reporting!");
+
+void BroadcastValues(byte packageBuffer[], int packageLength){
+  radio.send(244, packageBuffer, packageLength);
 }
 
 void loop() {
@@ -93,37 +97,26 @@ void loop() {
   // communication to wake up and work correctly. 
   delay(100);
 
-  switch (StationSelect) {
-    case 0:
-      // Todo: Add a warning message that is sent to the 
-      // home station to indicate that a chip was incorrectly
-      // set up. 
-      Serial.print("Incorrect Station!");
-      break;
-    case 1:
-      StationOne();     
-      break;
-    case 2:
-      StationTwo();
-      break;
-    case 3:
-      StationThree();
-      break;
-    case 4:
-      StationFour();
-      break;
-    case 5:
-      StationFive();
-      break;
+  
+  int valuesSize = 4;
+  byte sensorValues[valuesSize];
+  for (int a = 0; a < valuesSize; a++){
+    sensorValues[a] = (byte) 0;
   }
-
+  
+  SensorRead(sensorValues);
+  Serial.print("Sending the following data: [");
+  for (int i = 0; i < valuesSize; i++){
+    Serial.print(sensorValues[i]);
+  }
+  Serial.println("]");
+  
+  BroadcastValues(sensorValues, valuesSize);
+  
+  
   // Delay is required. Currently set to 1 sec for debugging. 
   // Any delay less then 100 has yet to be tested but is
   // required to properly allow the serial communication
   // to complete before going to sleep. 
-  delay(1000);
-
-  // Todo: Clever loops to check on state of Serial communication. 
-  
-
+  delay(10000);
 }
