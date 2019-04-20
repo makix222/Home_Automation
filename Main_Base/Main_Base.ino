@@ -32,35 +32,49 @@ void setup() {
 
 void loop() {
   if (radio.receiveDone()){
+    byte valueArray[radio.DATALEN];
     Serial.print("received from node ");
     Serial.print(radio.SENDERID, DEC);
     Serial.print(": [");
+
+    // We need to parse the received data package. 
     for (byte i = 0; i < radio.DATALEN; i++){
-      Serial.print((byte)radio.DATA[i]);
+      byte receivedValue = (byte)radio.DATA[i];
+      valueArray[i] = receivedValue;
+    }
+    
+    int outputPackage[radio.DATALEN/2];
+    int outputSize = radio.DATALEN/2;
+    byteArryToIntArry(valueArray, radio.DATALEN, outputPackage, outputSize);
+    
+    for (int i = 0; i < outputSize; i++){
+      switch (i){
+        case 0:
+          Serial.print(" Temp: ");
+          Serial.print(outputPackage[i]);
+          Serial.print(" °F");
+          break;
+        case 1:
+          Serial.print(" Light: ");
+          Serial.print(outputPackage[i]);
+          Serial.print(" ");
+          break;
+      }
+      
     }
     Serial.print("], RSSI ");
     Serial.println(radio.RSSI);
     
-    int outputPackage[radio.DATALEN/2];
-    byteToInt((byte)radio.DATA, outputPackage);  
   }
 
 }
 
-void byteToInt(byte input[], int output[]){
-  Serial.println("Entered the byteToInt Function: ");
-  // Figure out how many ints we are generating
-  int outputSize = sizeof(input) / 2;
-  Serial.print("OutputSize: ");
-  Serial.println(outputSize);
+void byteArryToIntArry(byte input[], int sizeOfInput, int output[], int sizeOfOutput){
   int count = 0;
-  //Convert two bytes into one int
-  for (int i = 0; i < outputSize; i++){
-    Serial.print("Count value: ");
-    Serial.println(count);
-    output[count] = input[(2 * count)] | input [1 + (2 * count)] << 8;
-    Serial.print("Output Int Value: ");
-    Serial.println(output[count]);
+  // loop through each output array element, and for every output value, convert two bytes. 
+  for (int i = 0; i < sizeOfOutput; i++){
+    // Convert two bytes into one int
+    output[count] = input[(2 * count) + 1] | (input [(2 * count)] << 8);
     count ++;
   }
 }
