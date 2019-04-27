@@ -78,11 +78,28 @@ Standard Arduino:
 
 ## Message Package:
 Each station will send a single message that contains all the data from each sensor. 
-[0,1,2,3] = Any error codes
-[4,5,6,7] = Temperature in F
-[8,9,10,11] = Light Reading - Arbitrary
-[12,13] = Washer Status, Dryer Status
-[14,15,16,17] = 
+
+The message data type is byte
+
+# Station 1:
+[(0,1) = Temp; (2,3) = Light; (4,5) = dryer vibration]
+
+# Station 2:
+[(0,1) = Temp; (2,3) = Light; (4,5) = Door activation count]
+
+# Station 3:
+[(0,1) = Temp; (2,3) = Light; (4,5) = soil water level; (6,7) = soil moisture; (8,9) = humidity]
+
+# Station 4:
+[(0,1) = Temp room 1; (2,3) = Light room 1; (4,5) = Temp room 2; (6,7) = Light room 2; (8,9) = Temp room 3; (10,11) = Light room 3]
+
+
+## theory of message structure
+Each station will transmit its message package. 
+This message package will contain a collection of integers
+The integers array will come from each station with their own order. 
+The main station will need to contain logic to understand what station sent the packet. 
+Main will then be required to decompose the message and label the data. 
 
 
 

@@ -17,25 +17,30 @@ const int stationID = 244;    // Just this station ID
 const int baudRate = 9600;
 RFM69 radio;
 
-// Transmission LED - Diganostic
-int radioLEDPin = 9;
+// Transmission LED - Diagnostic
+int statusLED = 4;
+int receivedCountDaily = 0;
+int dayCount = 0;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(baudRate);
   Serial.println("Main Base online");
 
-  pinMode(radioLEDPin, OUTPUT);
-  radio.initialize(RF69_915MHZ, 244, 127);
+  pinMode(statusLED, OUTPUT);
+  radio.initialize(RF69_915MHZ, stationID, networkID);
   radio.setHighPower();
-
 }
 
 void loop() {
   if (radio.receiveDone()){
     byte valueArray[radio.DATALEN];
-    Serial.print("received from node ");
-    Serial.print(radio.SENDERID, DEC);
-    Serial.print(": [");
+    Serial.print("{Today: ");
+    Serial.print(receivedCountDaily);
+    Serial.print(" Day: ");
+    Serial.print(dayCount);
+    Serial.print("} ");
+    Serial.print("Node: ");
+    Serial.println(radio.SENDERID, DEC);
 
     // We need to parse the received data package. 
     for (byte i = 0; i < radio.DATALEN; i++){
@@ -46,25 +51,21 @@ void loop() {
     int outputPackage[radio.DATALEN/2];
     int outputSize = radio.DATALEN/2;
     byteArryToIntArry(valueArray, radio.DATALEN, outputPackage, outputSize);
+    procesesStationMsg(outputPackage, outputSize, radio.SENDERID);
     
-    for (int i = 0; i < outputSize; i++){
-      switch (i){
-        case 0:
-          Serial.print(" Temp: ");
-          Serial.print(outputPackage[i]);
-          Serial.print(" °F");
-          break;
-        case 1:
-          Serial.print(" Light: ");
-          Serial.print(outputPackage[i]);
-          Serial.print(" ");
-          break;
-      }
-      
-    }
-    Serial.print("], RSSI ");
+    Serial.print("RSSI ");
     Serial.println(radio.RSSI);
-    
+    Serial.println("");
+    receivedCountDaily++;
+    if (receivedCountDaily > 32400){
+      // 86400 seconds in a day. 
+      // Each station submits a msg every 8 seconds.
+      // 10800 messages every day per station
+      // 3 stations
+      // 32400 messages in a day. 
+      receivedCountDaily = 0;
+      dayCount++;
+    }
   }
 
 }
@@ -74,7 +75,55 @@ void byteArryToIntArry(byte input[], int sizeOfInput, int output[], int sizeOfOu
   // loop through each output array element, and for every output value, convert two bytes. 
   for (int i = 0; i < sizeOfOutput; i++){
     // Convert two bytes into one int
-    output[count] = input[(2 * count) + 1] | (input [(2 * count)] << 8);
+    output[count] = (input [(2 * count)] << 8 | input[(2 * count) + 1]); //
     count ++;
   }
+}
+
+void procesesStationMsg(int input[], int inputSize, int stationID){
+  
+  Serial.print("Temp: ");
+  Serial.print(input[0]);
+  Serial.println(" °F");
+  
+  Serial.print("Light: ");
+  Serial.println(input[1]);
+  
+  switch (stationID){
+    case 1:
+      Serial.print("Dryer motion: ");
+      Serial.println(input[2]);
+      Serial.print("Dryer State: ");
+      Serial.println(input[3]);
+      break;
+    case 2:
+      Serial.print("Door Count: ");
+      Serial.println(input[2]);
+      break;
+    case 3:
+      Serial.print("Soil Water Level: ");
+      Serial.println(input[2]);
+      
+      Serial.print("Soil State: ");
+      Serial.println(input[3]);
+      break;
+    case 4:
+      Serial.println("Room 2 ");
+      Serial.print("Temp: ");
+      Serial.print(input[2]);
+      Serial.println(" °F");
+      Serial.print("Light: ");
+      Serial.println(input[3]);
+      
+      Serial.println("Room 3 ");
+      Serial.print("Temp: ");
+      Serial.print(input[4]);
+      Serial.println(" °F");
+      Serial.print("Light: ");
+      Serial.println(input[5]);
+      break;
+    default:
+      Serial.println("Station is unsupported");
+      break;
+    }
 }

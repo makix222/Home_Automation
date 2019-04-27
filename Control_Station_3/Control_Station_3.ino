@@ -1,6 +1,6 @@
 // Emerson Maki
 // 04/01/2019
-// This bit here will live on Control Station 2. 
+// This bit here will live on Control Station 3. 
 // Theory of operation documented within README. 
 // 
 // Utilizes the RFM69 library by Felix Rusu, LowPowerLab.com
@@ -8,7 +8,6 @@
 // Big Thanks to Mike Grusin for SparkFun's hook up guide
 // https://learn.sparkfun.com/tutorials/rfm69hcw-hookup-guide
 
-// Front Door monitor using Ultrasound Sensor
 
 #include <RFM69.h>
 #include <LowPower.h>
@@ -17,7 +16,7 @@
 
 // Radio Specific:
 const int networkID = 127;  // Entire Home network
-const int stationID = 2;    // Just this station ID
+const int stationID = 3;    // Just this station ID
 const int baudRate = 9600;
 
 RFM69 radio;
@@ -33,13 +32,11 @@ int tempPin = A6;
 int tempRead;
 float tempC, tempF;
 
-// Station 2, Ultrasound Specifc
-int trigPin = 6;
-int echoPin = 7;
-long period = 0;
-int distance = 0;
-int doorOpenPin = 8;
-
+int waterPin = A5;
+const int soilWet = 300;
+const int soilDamp = 400;
+const int soilDry = 500;
+const int soilBare = 600;
 
 void setup() {
   pinMode(statusLED, OUTPUT);
@@ -48,22 +45,20 @@ void setup() {
   // All Analog sensors are set to measure between 0v and 1.1v
   analogReference(INTERNAL);
 
-  // Serial communication right now for simple debugging.
+  // Serial communication for simple debugging.
   Serial.begin(baudRate);
   Serial.print("Control Station ");
   Serial.print(stationID);
   Serial.println(" online");
-
+  
   pinMode(lightPin, INPUT);
   pinMode(tempPin, INPUT);
 
   radio.initialize(RF69_915MHZ, stationID, networkID);
   radio.setHighPower();
 
-  // Station 2
-  pinMode(trigPin, OUTPUT);
-  pinMode(echoPin, INPUT);
-  pinMode(doorOpenPin, INPUT);
+  // Station 3
+  pinMode(waterPin, INPUT);
 
   // Status Startup Complete
   digitalWrite(statusLED, LOW);
@@ -107,59 +102,58 @@ void BroadcastValues(byte packageBuffer[], int packageLength){
 }
 
 void loop() {
+  LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, 
+                SPI_OFF, USART0_OFF, TWI_OFF);
+
+  // This delay and the last delay are vital for correct
+  // operation after waking up. Must give time for serial
+  // communication to wake up and work correctly. 
   delay(100);
+
   
-  int valuesSize = 6; // How many bytes to send? 
+  int valuesSize = 8; // How many bytes to send? 
   byte sensorValues[valuesSize];
   SensorRead(sensorValues);  
-  doorPassCount(sensorValues);
+  PlantWaterNeeds(sensorValues);
   BroadcastValues(sensorValues, valuesSize);
   
-  delay(3000);
+  
+  // Delay is required. Currently set to 1 sec for debugging. 
+  // Any delay less then 100 has yet to be tested but is
+  // required to properly allow the serial communication
+  // to complete before going to sleep. 
+  delay(100);
 }
 
-void doorPassCount(byte input[]){
-  int count = 0;
-  int distance = DistanceToDoor();
-  int prevDistance = DistanceToDoor();
-  bool doorOpen;
-  do{
-    delay(50);
-    int distDiff = 0;
-    doorOpen = digitalRead(doorOpenPin);
-    distance = DistanceToDoor();
-    distDiff = abs(distance - prevDistance);
-    if(distDiff > 6){
-      // if the measured distance changes more then 3 inches
-      Serial.print("Distance :");
-      Serial.println(distance);
-      Serial.print("distDiff :");
-      Serial.println(distDiff);
-      count++;
-    }    
-    prevDistance = distance;
-  }while(doorOpen);  // Measure the distance while the door is open
+void PlantWaterNeeds(byte input[]){
+  int soilLevel = SoilDetect(input);\
+  input[6] = 0; // int bytes stuffing
+  if(soilLevel > soilBare){
+    input[7] = (byte) 1;
+  }
+  else if(soilLevel > soilDry){
+    input[7] = (byte) 2;
+  }
+  else if(soilLevel > soilDamp){
+    input[7] = (byte) 3;
+  }
+  else if(soilLevel > soilWet){
+    input[7] = (byte) 4;
+  }
+  else{
+    input[7] = 0;
+  }
   
-  input[4] = (byte) (count >> 8);
-  input[5] = (byte) (count);
 }
 
-int DistanceToDoor(){
-  // Transients must be supressed for a moment. 
-  digitalWrite(trigPin, LOW);
-  delayMicroseconds(10);
-
-  // Per datasheet: triggered with minimum 10us pulse
-  digitalWrite(trigPin, HIGH);
-  delayMicroseconds(13);
-  digitalWrite(trigPin, LOW);
-  
-  // pulse in measures length that first value was changed for. Requires Long datatype. 
-  period = pulseIn(echoPin, HIGH);
-
-  int distance;
-  distance = (period / 2) / 74;  // convert to inches
-  return distance;
+int SoilDetect(byte input[]){
+  int value;
+  value = analogRead(waterPin);
+  delay(2);
+  Serial.print("Water Measure: ");
+  Serial.println(value);
+  input[4] = (byte) (value >> 8);
+  input[5] = (byte) (value);
 }
 
 void blink(){
